@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ВечірКіно — Рандомайзер фільмів для ідеального вечора</title>
+  <meta name="description" content="Особистий рандомайзер фільмів для легкого вибору кіно на вечір. Виключайте переглянуті та небажані стрічки назавжди, фільтруйте за жанрами та дивіться трейлери.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="ambient-pattern"></div>
+
+  <!-- Верхня навігаційна панель -->
+  <header class="app-header">
+    <a href="#" class="brand" title="ВечірКіно">
+      <div class="brand-icon">🎬</div>
+      <div class="brand-text">
+        <h1>ВечірКіно</h1>
+        <span>Movie Randomizer</span>
+      </div>
+    </a>
+
+    <!-- Лічильник доступних фільмів у пулі -->
+    <div class="header-status">
+      <div class="pool-dot"></div>
+      <span id="pool-counter">Завантаження каталогу...</span>
+    </div>
+
+    <!-- Кнопки швидкого доступу -->
+    <div class="header-actions">
+      <button class="btn-header" id="btn-header-undo" title="Скасувати останню дію (Ctrl+Z)">
+        <span>↩️</span> Скасувати
+      </button>
+
+      <button class="btn-header" id="btn-open-watchlist" title="Мій список перегляду (фільми, які хочу подивитися)">
+        <span>🔖</span> Мій список
+        <span class="badge-count" id="header-saved-count" style="background: var(--accent-gold); color: #000; font-weight: 700;">0</span>
+      </button>
+
+      <button class="btn-header" id="btn-open-filters" title="Налаштувати фільтри за жанром та рейтингом">
+        <span>⚙️</span> Фільтри
+      </button>
+
+      <button class="btn-header" id="btn-open-lists" title="Переглянути виключені та переглянуті фільми">
+        <span>📋</span> Списки
+        <span class="badge-count" id="header-watched-count" title="Переглянуті">0</span>
+      </button>
+
+      <button class="btn-header" id="btn-open-add-movie" title="Додати свій фільм до списку">
+        <span>➕</span> Додати фільм
+      </button>
+
+      <button class="btn-header" id="btn-open-settings" title="Налаштування та резервна копія">
+        <span>💾</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Головна сцена рандомайзера (Посередині вікна) -->
+  <main class="main-stage">
+    <div class="card-container" id="card-container">
+      <!-- Картка фільму або Порожній стан рендериться тут через JavaScript -->
+    </div>
+
+    <!-- Панель підказок клавіатури -->
+    <div class="keyboard-bar">
+      <div class="kbd-item"><kbd>←</kbd> Не подобається</div>
+      <div class="kbd-item"><kbd>S</kbd> В список</div>
+      <div class="kbd-item"><kbd>Пробіл</kbd> Пропустити</div>
+      <div class="kbd-item"><kbd>→</kbd> Вже бачив</div>
+      <div class="kbd-item"><kbd>Enter</kbd> Дивитися сьогодні!</div>
+      <div class="kbd-item"><kbd>Ctrl+Z</kbd> Скасувати</div>
+    </div>
+  </main>
+
+  <!-- Плаваючий Toast для миттєвого скасування (Undo) -->
+  <div class="toast-undo" id="toast-undo">
+    <div class="toast-message" id="toast-message">Дію виконано</div>
+    <button class="btn-undo-toast" id="btn-toast-undo">↩️ Скасувати</button>
+  </div>
+
+  <!-- Модальне вікно: Трейлер та Деталі переможця -->
+  <div class="modal-backdrop" id="winner-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🍿 Відмінний вибір на сьогодні!</h2>
+        <button class="btn-close-modal" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Вміст генерується динамічно -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно: Керування списками (Watched / Disliked) -->
+  <div class="modal-backdrop" id="lists-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📋 Мої списки фільмів</h2>
+        <button class="btn-close-modal" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="lists-tabs">
+          <button class="tab-btn active" data-tab="saved">🔖 Хочу подивитися (<span id="tab-count-saved">0</span>)</button>
+          <button class="tab-btn" data-tab="watched">👁️ Вже дивився (<span id="tab-count-watched">0</span>)</button>
+          <button class="tab-btn" data-tab="disliked">🚫 Не подобається (<span id="tab-count-disliked">0</span>)</button>
+        </div>
+        <input 
+          type="text" 
+          class="search-input" 
+          id="lists-search-input" 
+          placeholder="🔍 Пошук за назвою у списку..." 
+        />
+        <div class="movie-list-container" id="modal-movie-list">
+          <!-- Список фільмів генерується динамічно -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно: Фільтри пошуку -->
+  <div class="modal-backdrop" id="filters-modal">
+    <div class="modal-content" style="max-width: 580px;">
+      <div class="modal-header">
+        <h2>🎯 Фільтри вибору на вечір</h2>
+        <button class="btn-close-modal" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Жанри -->
+        <div class="filter-group">
+          <div class="filter-title">Жанр фільму</div>
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="genre" data-value="all">Всі жанри</button>
+            <button class="filter-chip" data-filter="genre" data-value="Фантастика">Фантастика</button>
+            <button class="filter-chip" data-filter="genre" data-value="Трилер">Трилер</button>
+            <button class="filter-chip" data-filter="genre" data-value="Комедія">Комедія</button>
+            <button class="filter-chip" data-filter="genre" data-value="Детектив">Детектив</button>
+            <button class="filter-chip" data-filter="genre" data-value="Драма">Драма</button>
+            <button class="filter-chip" data-filter="genre" data-value="Бойовик">Бойовик</button>
+            <button class="filter-chip" data-filter="genre" data-value="Кримінал">Кримінал</button>
+            <button class="filter-chip" data-filter="genre" data-value="Анімація">Анімація</button>
+            <button class="filter-chip" data-filter="genre" data-value="Пригоди">Пригоди</button>
+            <button class="filter-chip" data-filter="genre" data-value="Жахи">Жахи</button>
+            <button class="filter-chip" data-filter="genre" data-value="Романтика">Романтика</button>
+          </div>
+        </div>
+
+        <!-- Мінімальний рейтинг -->
+        <div class="filter-group">
+          <div class="filter-title">Мінімальний рейтинг IMDb</div>
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="rating" data-value="0">Будь-який</button>
+            <button class="filter-chip" data-filter="rating" data-value="7.5">7.5+ і вище</button>
+            <button class="filter-chip" data-filter="rating" data-value="8.0">8.0+ Високий</button>
+            <button class="filter-chip" data-filter="rating" data-value="8.5">8.5+ Шедеври</button>
+          </div>
+        </div>
+
+        <!-- Епоха фільмів -->
+        <div class="filter-group">
+          <div class="filter-title">Період виходу</div>
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="era" data-value="all">Всі роки</button>
+            <button class="filter-chip" data-filter="era" data-value="2020">Сучасні (2020+)</button>
+            <button class="filter-chip" data-filter="era" data-value="2010">2010-ті</button>
+            <button class="filter-chip" data-filter="era" data-value="2000">2000-ні</button>
+            <button class="filter-chip" data-filter="era" data-value="1990">90-ті</button>
+            <button class="filter-chip" data-filter="era" data-value="classic">Класика (&lt;1990)</button>
+          </div>
+        </div>
+
+        <div class="filter-footer">
+          <button class="btn-header" id="btn-reset-filters">
+            🔄 Скинути
+          </button>
+          <button class="btn-primary-winner" style="width: auto; padding: 10px 22px; font-size: 14px;" id="btn-apply-filters">
+            Застосувати фільтри
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно: Додавання власного фільму -->
+  <div class="modal-backdrop" id="add-movie-modal">
+    <div class="modal-content" style="max-width: 540px;">
+      <div class="modal-header">
+        <h2>➕ Додати свій фільм</h2>
+        <button class="btn-close-modal" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="add-movie-form">
+          <div style="margin-bottom: 14px;">
+            <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Назва українською *</label>
+            <input type="text" id="new-movie-title" class="search-input" required placeholder="Наприклад: Дюна">
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Оригінальна назва (English)</label>
+            <input type="text" id="new-movie-orig-title" class="search-input" placeholder="Наприклад: Dune">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Рік випуску</label>
+              <input type="number" id="new-movie-year" class="search-input" value="2024" min="1900" max="2030">
+            </div>
+            <div>
+              <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Рейтинг (0 - 10)</label>
+              <input type="number" step="0.1" id="new-movie-rating" class="search-input" value="8.0" min="1" max="10">
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Тривалість (хв)</label>
+              <input type="number" id="new-movie-duration" class="search-input" value="120" min="20" max="400">
+            </div>
+            <div>
+              <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Жанри (через кому)</label>
+              <input type="text" id="new-movie-genres" class="search-input" placeholder="Фантастика, Пригоди">
+            </div>
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Посилання на постер (URL картинки)</label>
+            <input type="url" id="new-movie-poster" class="search-input" placeholder="https://... або залиште порожнім">
+          </div>
+          <div style="margin-bottom: 14px;">
+            <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">YouTube ID трейлера (опціонально)</label>
+            <input type="text" id="new-movie-trailer" class="search-input" placeholder="Наприклад: Way9Dexny3w">
+          </div>
+          <div style="margin-bottom: 18px;">
+            <label style="display:block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Короткий опис сюжету</label>
+            <textarea id="new-movie-desc" class="search-input" rows="3" placeholder="Про що цей фільм..."></textarea>
+          </div>
+          <button type="submit" class="btn-primary-winner" style="width: 100%;">
+            💾 Зберегти до моєї колекції
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно: Налаштування та Резервна копія -->
+  <div class="modal-backdrop" id="settings-modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>💾 Резервна копія та налаштування</h2>
+        <button class="btn-close-modal" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+        <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">
+          Усі ваші списки («Вже дивився», «Не подобається», власні фільми) автоматично зберігаються локально у вашому браузері.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button class="btn-header" id="btn-export-data" style="justify-content: center; padding: 12px;">
+            📥 Експортувати мої списки в файл (JSON)
+          </button>
+
+          <label class="btn-header" style="justify-content: center; padding: 12px; cursor: pointer;">
+            📤 Відновити з файлу (JSON)
+            <input type="file" id="btn-import-file" accept=".json" style="display: none;">
+          </label>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+          <button class="btn-action btn-dislike" id="btn-reset-all-data" style="width: 100%; padding: 12px;">
+            <span class="btn-action-label">🗑️ Скинути всі збережені списки</span>
+            <span class="btn-action-hint">Повернути рандомайзер до початкового стану</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Скрипти -->
+  <script src="movies-data.js"></script>
+  <script src="confetti.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
