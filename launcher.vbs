@@ -3,11 +3,10 @@ Dim oShell, fso, strDir
 Set oShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 strDir = fso.GetParentFolderName(WScript.ScriptFullName)
-oShell.CurrentDirectory = strDir
 
-' Start server in background
-oShell.Run "cmd.exe /c node server.js", 0, False
+' Start server in background with explicit directory
+oShell.Run "cmd.exe /c cd /d """ & strDir & """ && node server.js", 0, False
 WScript.Sleep 800
 
-' Open browser
+' Open default browser
 oShell.Run "http://localhost:3000"
